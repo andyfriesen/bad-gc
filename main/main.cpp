@@ -17,7 +17,6 @@ using Destructor = void (*)(Object*);
 
 enum Color {
     black,
-    gray,
     white
 };
 
@@ -34,12 +33,25 @@ struct HasGCData {
 };
 
 template <typename T>
-GCData* getGCData(T* t) {
+HasGCData<T>* hasGCData(T* t) {
+    if (!t) {
+        return nullptr;
+    }
+
     auto ofs = offsetof(HasGCData<T>, datum);
-    HasGCData<T>* hgcd = reinterpret_cast<HasGCData<T>*>(
+    return reinterpret_cast<HasGCData<T>*>(
         reinterpret_cast<char*>(t) - ofs
     );
-    return &hgcd->gc;
+}
+
+template <typename T>
+GCData* getGCData(T* t) {
+    auto hgcd = hasGCData(t);
+    if (hgcd) {
+        return &hgcd->gc;
+    } else {
+        return nullptr;
+    }
 }
 
 GCData* getGCData(Object* p) {
@@ -63,16 +75,21 @@ struct root : RootBase {
     {}
 
     root& operator=(T* rhs) {
+        printf("Assign %p = %p\n", this, rhs);
         ptr = rhs;
         return *this;
     }
 
+    T* get() {
+        return static_cast<T*>(ptr);
+    }
+
     T& operator *() {
-        return *static_cast<T*>(ptr);
+        return *get();
     }
 
     T* operator ->() {
-        return static_cast<T*>(ptr);
+        return get();
     }
 };
 
@@ -109,22 +126,42 @@ T* gcnew(Arena& arena, Args&&... args) {
         GCData {
             arena.currentWhite,
             [](Tracer t, Object* p) { trace(t, static_cast<T*>(p)); },
-            [](Object* p) { delete static_cast<T*>(p); }
+            [](Object* p) { delete hasGCData<T>(static_cast<T*>(p)); }
         },
         T{ std::forward<Args>(args)... }
     };
-    arena.objects.insert(hgc);
+    arena.objects.insert(&hgc->datum);
     return &hgc->datum;
 }
 
 struct TraceHelper {
     Arena::Set& out;
+    Color currentWhite;
+    Color currentBlack;
 
     void operator()(Object* obj);
 };
 
+void dump(Arena& arena) {
+    printf("dump\tblack = %d\n", arena.currentBlack);
+    for (auto o: arena.objects) {
+        auto gcd = getGCData(o);
+        printf("\t%p %d\n", o, gcd->color);
+    }
+}
+
 void TraceHelper::operator()(Object* obj) {
-    out.insert(getGCData(obj));
+    if (!obj) {
+        return;
+    }
+
+    auto gcd = getGCData(obj);
+    if (gcd->color == currentBlack) {
+        return;
+    }
+
+    gcd->color = currentWhite;
+    out.insert(obj);
 }
 
 void Arena::collect() {
@@ -132,21 +169,21 @@ void Arena::collect() {
 
     for (RootBase* root: roots) {
         if (root->ptr) {
-            auto gcdata = getGCData(root->ptr);
-            gray.insert(gcdata);
+            gray.insert(root->ptr);
         }
     }
 
     while (!gray.empty()) {
         Object* o = *gray.begin();
-        printf("Gray %p\n", o);
         gray.erase(gray.begin());
 
-        auto helper = TraceHelper{gray};
+        auto helper = TraceHelper{gray, currentWhite, currentBlack};
         GCData* gcd = getGCData(o);
-        gcd->color = currentBlack;
+
         gcd->visit(helper, o);
     }
+
+    dump(*this);
 
     auto it = objects.begin();
     while (it != objects.end()) {
@@ -160,6 +197,8 @@ void Arena::collect() {
             objects.erase(it2);
         }
     }
+
+    std::swap(currentBlack, currentWhite);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -187,6 +226,7 @@ namespace example {
     }
 
     void trace(Tracer tracer, BTree* bt) {
+        printf("Trace %p\n", bt);
         tracer(bt->left);
         tracer(bt->right);
     }
@@ -202,7 +242,20 @@ int main() {
     tree->left = gcnew<BTree>(arena);
     tree->right = gcnew<BTree>(arena);
 
+    // tree->right->left = tree.get();
+    // tree->left->left = tree.get();
+
+    root<BTree> interloper{arena};
+    interloper = tree->left;
+
     tree = nullptr;
+
+    dump(arena);
+
+    arena.collect();
+
+    printf("hoh\n");
+    interloper = nullptr;
 
     arena.collect();
 
