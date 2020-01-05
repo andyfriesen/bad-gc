@@ -1,41 +1,36 @@
 
-#include <iostream>
-#include <cassert>
-#include <utility>
-#include <unordered_map>
-#include <unordered_set>
-
+#include "gtest/gtest.h"
 #include "gc.h"
-
-using gc::Arena;
-using gc::dump;
-using gc::gcnew;
-using gc::root;
 
 namespace example {
     struct BTree {
+        static int numInstances;
+
         BTree* left = nullptr;
         BTree* right = nullptr;
 
         int data = 0;
 
         BTree() {
-            printf("BTree() %p\n", this);
+            ++numInstances;
         }
 
         ~BTree() {
-            printf("~BTree() %p\n", this);
+            --numInstances;
         }
     };
 
+    int BTree::numInstances = 0;
+
     void trace(gc::Tracer tracer, BTree* bt) {
-        printf("Trace %p\n", bt);
         tracer(bt->left);
         tracer(bt->right);
     }
 }
 
-int main() {
+using namespace gc;
+
+TEST(GCTest, collects_everything) {
     using example::BTree;
 
     Arena arena;
@@ -45,22 +40,20 @@ int main() {
     tree->left = gcnew<BTree>(arena);
     tree->right = gcnew<BTree>(arena);
 
-    // tree->right->left = tree.get();
-    // tree->left->left = tree.get();
-
     root<BTree> interloper{arena};
     interloper = tree->left;
 
     tree = nullptr;
 
-    dump(arena);
+    EXPECT_EQ(3, BTree::numInstances);
 
     arena.collect();
 
-    printf("hoh\n");
+    EXPECT_EQ(1, BTree::numInstances);
+
     interloper = nullptr;
 
     arena.collect();
 
-    return 0;
+    EXPECT_EQ(0, BTree::numInstances);
 }
