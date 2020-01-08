@@ -51,8 +51,6 @@ namespace gc {
             gcd->visit(helper, o);
         }
 
-        dump(*this);
-
         auto it = objects.begin();
         while (it != objects.end()) {
             Object* o = *it;

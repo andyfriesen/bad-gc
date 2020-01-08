@@ -78,7 +78,6 @@ namespace gc {
         {}
 
         root& operator=(T* rhs) {
-            printf("Assign %p = %p\n", this, rhs);
             ptr = rhs;
             return *this;
         }

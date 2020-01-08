@@ -1,5 +1,5 @@
 cc_test(
-    name = "hello-test",
+    name = "tests",
     srcs = ["main.cpp"],
     copts = [
         "-std=c++14",

@@ -29,10 +29,9 @@ namespace example {
 }
 
 using namespace gc;
+using example::BTree;
 
 TEST(GCTest, collects_everything) {
-    using example::BTree;
-
     Arena arena;
 
     root<BTree> tree{arena};
@@ -55,5 +54,24 @@ TEST(GCTest, collects_everything) {
 
     arena.collect();
 
+    EXPECT_EQ(0, BTree::numInstances);
+}
+
+TEST(GCTest, collects_cycle) {
+    Arena arena;
+
+    root<BTree> tree{arena};
+    tree = gcnew<BTree>(arena);
+    tree->left = gcnew<BTree>(arena);
+    tree->right = gcnew<BTree>(arena);
+    tree->left->left = tree.get();
+
+    arena.collect();
+    EXPECT_EQ(3, BTree::numInstances);
+    arena.collect();
+    EXPECT_EQ(3, BTree::numInstances);
+
+    tree = nullptr;
+    arena.collect();
     EXPECT_EQ(0, BTree::numInstances);
 }
