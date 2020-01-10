@@ -21,11 +21,20 @@ namespace gc {
     }
 
     void dump(Arena& arena) {
-        printf("dump\tblack = %d\n", arena.currentBlack);
-        for (auto o: arena.objects) {
-            auto gcd = getGCData(o);
-            printf("\t%p %d\n", o, gcd->color);
+        printf("dump\n");
+        for (auto o: *arena.blackSet) {
+            printf("\t%p black\n", o);
         }
+        for (auto o: *arena.whiteSet) {
+            printf("\t%p white\n", o);
+        }
+    }
+
+    Arena::Arena()
+        : blackSet(&one)
+        , whiteSet(&two)
+    {
+
     }
 
     void Arena::collect() {
@@ -41,30 +50,24 @@ namespace gc {
             Object* o = *gray.begin();
             gray.erase(gray.begin());
 
-            auto helper = TraceHelper{gray, currentWhite, currentBlack};
-            GCData* gcd = getGCData(o);
-
-            if (gcd->color == currentBlack)
+            if (blackSet->count(o))
                 continue;
 
-            gcd->color = currentBlack;
+            blackSet->insert(o);
+            whiteSet->erase(o);
+
+            auto helper = TraceHelper{gray, *blackSet, *whiteSet};
+            GCData* gcd = getGCData(o);
+
             gcd->visit(helper, o);
         }
 
-        auto it = objects.begin();
-        while (it != objects.end()) {
-            Object* o = *it;
+        for (Object* o: *whiteSet) {
             GCData* gcd = getGCData(o);
-            auto it2 = it;
-            ++it;
-
-            if (gcd->color == currentWhite) {
-                gcd->destroy(o);
-                objects.erase(it2);
-            }
+            gcd->destroy(o);
         }
 
-        std::swap(currentBlack, currentWhite);
+        std::swap(blackSet, whiteSet);
     }
 
 }

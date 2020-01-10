@@ -18,13 +18,7 @@ namespace gc {
     using Visitor = void (*)(Tracer, Object*);
     using Destructor = void (*)(Object*);
 
-    enum Color {
-        black,
-        white
-    };
-
     struct GCData {
-        Color color;
         Visitor visit = nullptr;
         Destructor destroy = nullptr;
     };
@@ -96,17 +90,22 @@ namespace gc {
     };
 
     struct Arena {
+        Arena();
+        Arena(const Arena&) = delete;
+        void operator=(const Arena&) = delete;
 
         void collect();
 
     public:
         using Set = std::unordered_set<Object*>;
 
-        Color currentWhite = white;
-        Color currentBlack = black;
-
-        Set objects;
         Set gray;
+
+        Set one;
+        Set two;
+
+        Set* blackSet;
+        Set* whiteSet;
 
         std::unordered_set<RootBase*> roots;
     };
@@ -115,20 +114,21 @@ namespace gc {
     T* gcnew(Arena& arena, Args&&... args) {
         auto hgc = new HasGCData<T>{
             GCData {
-                arena.currentWhite,
                 [](Tracer t, Object* p) { trace(t, static_cast<T*>(p)); },
                 [](Object* p) { delete hasGCData<T>(static_cast<T*>(p)); }
             },
             T{ std::forward<Args>(args)... }
         };
-        arena.objects.insert(&hgc->datum);
+        Object* o = &hgc->datum;
+        arena.whiteSet->insert(o);
         return &hgc->datum;
     }
 
     struct TraceHelper {
         Arena::Set& out;
-        Color currentWhite;
-        Color currentBlack;
+
+        Arena::Set& blackSet;
+        Arena::Set& whiteSet;
 
         void operator()(Object* obj);
     };
