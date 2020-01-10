@@ -38,7 +38,7 @@ namespace gc {
     }
 
     void Arena::collect() {
-        gray.clear();
+        Set gray;
 
         for (RootBase* root: roots) {
             if (root->ptr) {

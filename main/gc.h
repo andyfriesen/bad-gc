@@ -99,8 +99,6 @@ namespace gc {
     public:
         using Set = std::unordered_set<Object*>;
 
-        Set gray;
-
         Set one;
         Set two;
 
