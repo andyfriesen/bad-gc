@@ -96,6 +96,20 @@ namespace gc {
 
         void collect();
 
+        template <typename T, typename... Args>
+        T* gcnew(Args&&... args) {
+            auto hgc = new HasGCData<T>{
+                GCData {
+                    [](Tracer t, Object* p) { trace(t, static_cast<T*>(p)); },
+                    [](Object* p) { delete hasGCData<T>(static_cast<T*>(p)); }
+                },
+                T{ std::forward<Args>(args)... }
+            };
+            Object* o = &hgc->datum;
+            whiteSet->insert(o);
+            return &hgc->datum;
+        }
+
     public:
         using Set = std::unordered_set<Object*>;
 
@@ -107,20 +121,6 @@ namespace gc {
 
         std::unordered_set<RootBase*> roots;
     };
-
-    template <typename T, typename... Args>
-    T* gcnew(Arena& arena, Args&&... args) {
-        auto hgc = new HasGCData<T>{
-            GCData {
-                [](Tracer t, Object* p) { trace(t, static_cast<T*>(p)); },
-                [](Object* p) { delete hasGCData<T>(static_cast<T*>(p)); }
-            },
-            T{ std::forward<Args>(args)... }
-        };
-        Object* o = &hgc->datum;
-        arena.whiteSet->insert(o);
-        return &hgc->datum;
-    }
 
     struct TraceHelper {
         Arena::Set& out;

@@ -35,9 +35,9 @@ TEST(GCTest, collects_everything) {
     Arena arena;
 
     root<BTree> tree{arena};
-    tree = gcnew<BTree>(arena);
-    tree->left = gcnew<BTree>(arena);
-    tree->right = gcnew<BTree>(arena);
+    tree = arena.gcnew<BTree>();
+    tree->left = arena.gcnew<BTree>();
+    tree->right = arena.gcnew<BTree>();
 
     root<BTree> interloper{arena};
     interloper = tree->left;
@@ -61,9 +61,9 @@ TEST(GCTest, collects_cycle) {
     Arena arena;
 
     root<BTree> tree{arena};
-    tree = gcnew<BTree>(arena);
-    tree->left = gcnew<BTree>(arena);
-    tree->right = gcnew<BTree>(arena);
+    tree = arena.gcnew<BTree>();
+    tree->left = arena.gcnew<BTree>();
+    tree->right = arena.gcnew<BTree>();
     tree->left->left = tree.get();
 
     arena.collect();

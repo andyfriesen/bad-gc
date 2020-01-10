@@ -33,9 +33,7 @@ namespace gc {
     Arena::Arena()
         : blackSet(&one)
         , whiteSet(&two)
-    {
-
-    }
+    {}
 
     void Arena::collect() {
         Set gray;
