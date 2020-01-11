@@ -21,6 +21,10 @@ namespace gc {
     struct GCData {
         Visitor visit = nullptr;
         Destructor destroy = nullptr;
+
+        bool color;
+        GCData* next;
+        GCData* prev;
     };
 
     template <typename T>
@@ -105,19 +109,25 @@ namespace gc {
                 },
                 T{ std::forward<Args>(args)... }
             };
-            Object* o = &hgc->datum;
-            whiteSet->insert(o);
+
+            if (whiteHead)
+                whiteHead->prev = &hgc->gc;
+
+            hgc->gc.color = currentWhite;
+            hgc->gc.next = whiteHead;
+            hgc->gc.prev = nullptr;
+            whiteHead = &hgc->gc;
+
             return &hgc->datum;
         }
 
     public:
         using Set = std::unordered_set<Object*>;
 
-        Set one;
-        Set two;
+        bool currentWhite = false;
 
-        Set* blackSet;
-        Set* whiteSet;
+        GCData* blackHead = nullptr;
+        GCData* whiteHead = nullptr;
 
         std::unordered_set<RootBase*> roots;
     };
@@ -125,8 +135,7 @@ namespace gc {
     struct TraceHelper {
         Arena::Set& out;
 
-        Arena::Set& blackSet;
-        Arena::Set& whiteSet;
+        bool currentWhite;
 
         void operator()(Object* obj);
     };
