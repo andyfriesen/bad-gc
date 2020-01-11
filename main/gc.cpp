@@ -38,13 +38,6 @@ namespace gc {
             printf("\t%p white\n", gross(p));
             p = p->next;
         }
-
-        // for (auto o: *arena.blackSet) {
-        //     printf("\t%p black\n", o);
-        // }
-        // for (auto o: *arena.whiteSet) {
-        //     printf("\t%p white\n", o);
-        // }
     }
 
     Arena::Arena()
