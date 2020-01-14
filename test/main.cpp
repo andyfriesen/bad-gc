@@ -75,3 +75,19 @@ TEST(GCTest, collects_cycle) {
     arena.collect();
     EXPECT_EQ(0, BTree::numInstances);
 }
+
+TEST(GCTest, arena_takes_everything_with_it) {
+    {
+        Arena arena;
+
+        root<BTree> tree{arena};
+        tree = arena.gcnew<BTree>();
+        tree->left = arena.gcnew<BTree>();
+        tree->right = arena.gcnew<BTree>();
+
+        root<BTree> interloper{arena};
+        interloper = tree->left;
+    }
+
+    EXPECT_EQ(0, BTree::numInstances);
+}

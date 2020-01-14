@@ -58,8 +58,6 @@ namespace gc {
         return getGCData(static_cast<int*>(p));
     }
 
-    struct Arena;
-
     struct RootBase {
         Arena& arena;
         Object* ptr = nullptr;
@@ -94,6 +92,8 @@ namespace gc {
 
     struct Arena {
         Arena();
+        ~Arena();
+    
         Arena(const Arena&) = delete;
         void operator=(const Arena&) = delete;
 
@@ -119,6 +119,9 @@ namespace gc {
 
             return &hgc->datum;
         }
+
+    private:
+        void release();
 
     public:
         using Set = std::unordered_set<Object*>;

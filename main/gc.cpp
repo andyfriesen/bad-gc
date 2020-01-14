@@ -44,6 +44,10 @@ namespace gc {
         : currentWhite(false)
     {}
 
+    Arena::~Arena() {
+        release();
+    }
+
     void Arena::collect() {
         Set gray;
 
@@ -91,6 +95,14 @@ namespace gc {
             gcd->visit(helper, o);
         }
 
+        release();
+
+        currentWhite = !currentWhite;
+        whiteHead = blackHead;
+        blackHead = nullptr;
+    }
+
+    void Arena::release() {
         GCData* gcd = whiteHead;
         while (gcd) {
             auto next = gcd->next;
@@ -100,10 +112,6 @@ namespace gc {
 
             gcd = next;
         }
-
-        currentWhite = !currentWhite;
-        whiteHead = blackHead;
-        blackHead = nullptr;
     }
 
 }
